@@ -1,4 +1,4 @@
-package net.keinr.util.image;
+package net.keinr.util;
 
 /*
 javafx.controls
