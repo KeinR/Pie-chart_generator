@@ -1,8 +1,10 @@
 package net.keinr.util;
 
-/*
-javafx.controls
-javafx.swing
+/**
+* Dependencies:
+*
+* - javafx.controls
+* - javafx.swing
 */
 
 import javafx.scene.image.WritableImage;
