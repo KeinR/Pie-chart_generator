@@ -24,6 +24,7 @@ import javafx.scene.control.Label;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
+import javafx.scene.text.Font;
 
 import net.keinr.util.*;
 
@@ -46,6 +47,8 @@ public class Main extends Application {
     private static String outputPath = "output/output.png";
     private static Pane canvas = new Pane();
     private static String textStyle = "-fx-font-size: 12;";
+    private static String title = "";
+    private static double titleSize = 15;
 
     @Override
     public void start(Stage window) {
@@ -61,34 +64,34 @@ public class Main extends Application {
             while ((line = br.readLine()) != null) {
                 lineNumber++;
                 if (line.length() == 0) continue;
-                String[] params = line.split("\\s");
-
-                if (line.charAt(0) == '@') {
-                    if (params.length < 2) continue;
-                    try {
+                try {
+                    if (line.charAt(0) == '@') {
+                        String[] params = parseCommand(line);
                         if (params[0].equalsIgnoreCase("@radius")) {
                             radius = Double.parseDouble(params[1]);
                         } else if (params[0].equalsIgnoreCase("@margin")) {
                             sideMargin = Double.parseDouble(params[1]);
-                        } else if (params[0].equalsIgnoreCase("@outputPath")) {
+                        } else if (params[0].equalsIgnoreCase("@outputpath")) {
                             outputPath = params[1];
+                        } else if (params[0].equalsIgnoreCase("@title")) {
+                            title = params[1];
+                        } else if (params[0].equalsIgnoreCase("@titlesize")) {
+                            titleSize = Double.parseDouble(params[1]);
                         }
-                    } catch (NumberFormatException e) {
-                        System.out.println("Error parsing config "+configPath+": second parameter on line "+lineNumber+" is not an integer or a double.");
-                        Platform.exit();
+                    } else {
+                        String[] params = parseValue(line);
+                        double result = params[0].length()>0?Double.parseDouble(params[0]):0;
+                        total += result;
+                        numbers.add(new Value(result, params[1].length()>1?params[1]:"", params[2].length()>2?params[2]:""));
                     }
-                } else {
-                    double result = params.length>0?Double.parseDouble(params[0]):0;
-                    total += result;
-                    numbers.add(new Value(result, params.length>1?params[1]:"", params.length>2?params[2]:""));
+                } catch (NumberFormatException e) {
+                    System.out.println("Error parsing config @ "+configPath+": parameter on line "+lineNumber+" is not a number");
+                    Platform.exit();
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        center = new CoordinatePair(radius+sideMargin, radius+sideMargin);
-        target = new CoordinatePair(radius+sideMargin, sideMargin);
 
 
         animation.terminate();
@@ -96,6 +99,24 @@ public class Main extends Application {
         System.out.print("Creating chart... \r");
         animation = new LoadingAnimation("Creating chart... ", 200);
         new Thread(animation).start();
+
+        final double dimensions = radius*2+sideMargin*2, dimensions_d10 = dimensions/10, dimensions_d20 = dimensions/20;
+
+        Text text_t = new Text(title);
+        Font font_t = Font.font("Arial", titleSize);
+        text_t.setFont(font_t);
+        text_t.applyCss();
+        double height_t = text_t.getLayoutBounds().getHeight();
+        double width_t = text_t.getLayoutBounds().getWidth();
+        Label t = new Label(title);
+        t.setLayoutX((dimensions-width_t)/2);
+        t.setLayoutY(5);
+        t.setStyle("-fx-font-size: "+titleSize+";");
+        canvas.getChildren().add(t);
+
+        center = new CoordinatePair(radius+sideMargin, radius+sideMargin+height_t);
+        target = new CoordinatePair(radius+sideMargin, sideMargin+height_t);
+
 
         int size = numbers.size();
 
@@ -112,46 +133,51 @@ public class Main extends Application {
             }
         }
 
-        final double dimensions = radius*2+sideMargin*2, dimensions_d10 = dimensions/10, dimensions_d20 = dimensions/20;
-
-        // System.out.println(dimensions_d20);
-
         final double fontSizePre = dimensions_d20/3;
-        textStyle = "-fx-font-size: "+(fontSizePre<10?10:fontSizePre)+";-fx-background-color: transparent;";
+        final double textSize = fontSizePre<10?10:fontSizePre;
+        textStyle = "-fx-font-size: "+textSize+";-fx-background-color: transparent;-fx-font-weight: bold;";
 
         ///
 
-        double spaceRemaining = dimensions, y_level = dimensions, x_buffer = 0, currentBuffer = 0;
-        int onCurrentLevel = 0;
+        double y_level = sideMargin, x_level = 0, x_buffer = 0;
 
         for (int i = 0; i < size; i++) { // Add labels
             Value focus = numbers.get(i);
             String toText = " -> " + focus.name + ",  %" + (Math.round(focus.value/total*10000)/100.0);
             Text text = new Text(toText);
-            text.setStyle(textStyle);
+            Font font = Font.font("Arial", textSize);
+            text.setFont(font);
             text.applyCss();
-            double width = text.getLayoutBounds().getWidth();
+            double width = text.getLayoutBounds().getWidth()*1.1;
 
             // width + color key width + total margin
-            double netWidth = dimensions_d10+width+keySpacing;
-            if (netWidth+currentBuffer >= dimensions + x_buffer) {
-                if (currentBuffer == 0) {
-                    x_buffer += (netWidth+currentBuffer)-(dimensions+x_buffer);
-                    addSet(currentBuffer+sideMargin, y_level, dimensions_d20, focus.color, toText);
-                    y_level += dimensions_d20;
-                } else {
-                    currentBuffer = 0;
-                    y_level += dimensions_d20;
-                    addSet(currentBuffer+sideMargin, y_level, dimensions_d20, focus.color, toText);
-                    currentBuffer += netWidth;
-                }
-            } else {
-                addSet(currentBuffer+sideMargin, y_level, dimensions_d20, focus.color, toText);
-                currentBuffer += netWidth;
+            double netWidth = dimensions_d20+width+keySpacing;
+
+            if (y_level+dimensions_d20 >= dimensions-sideMargin) {
+                y_level = sideMargin;
+                x_level = x_buffer;
             }
+            if (netWidth+x_level+keySpacing > x_buffer) {
+                x_buffer = netWidth+x_level+keySpacing;
+            }
+
+            // if (i == 3) {
+            //     System.out.println((netWidth+x_level+keySpacing) + " ==? " + x_buffer);
+            // }
+
+            Rectangle coloredKey = new Rectangle(dimensions+x_level, y_level+height_t, dimensions_d20, dimensions_d20);
+            coloredKey.setFill(Color.web(focus.color));
+
+            Label label = new Label(toText);
+            label.setLayoutX(dimensions+x_level+dimensions_d20+keySpacing);
+            label.setLayoutY(y_level+height_t+dimensions_d20/4);
+            label.setStyle(textStyle);
+
+            canvas.getChildren().addAll(label, coloredKey);
+
+            y_level += dimensions_d20+keySpacing;
         }
 
-        ///
 
         animation.terminate();
         System.out.println(" Done!");
@@ -160,10 +186,9 @@ public class Main extends Application {
         new Thread(animation).start();
 
         canvas.setStyle("-fx-background-color: null;");
-        Scene scene = new Scene(canvas, dimensions+x_buffer, y_level+dimensions_d20);
+        Scene scene = new Scene(canvas, dimensions+x_buffer, dimensions+height_t);
         window.initStyle(StageStyle.TRANSPARENT);
         scene.setFill(Color.TRANSPARENT);
-        // scene.getStylesheets().add("resources/style.css");
         ToFile.scene(scene, "png", outputPath);
 
         animation.terminate();
@@ -186,19 +211,51 @@ public class Main extends Application {
         target.y = rotatedY;
     }
 
-    private static void addSet(double x, double y_level, double dimensions_d20, String color, String text) {
-        Rectangle coloredKey = new Rectangle(x, y_level, dimensions_d20, dimensions_d20);
-        coloredKey.setFill(Color.web(color));
-
-        Label label = new Label(text);
-        label.setLayoutX(x+dimensions_d20+keySpacing);
-        label.setLayoutY(y_level);
-        label.setStyle(textStyle);
-        // label.getStyleClass().add("keyText");
-
-        canvas.getChildren().addAll(label, coloredKey);
+    private static String[] parseCommand(String line) {
+        int size = line.length();
+        boolean command = false;
+        StringBuilder builder = new StringBuilder();
+        String[] send = {"", ""};
+        for (int i = 0; i < size; i++) {
+            char focus = line.charAt(i);
+            if (!command && focus == ' ') {
+                command = true;
+                send[0] = builder.toString();
+                builder = new StringBuilder();
+            } else {
+                builder.append(Character.toString(focus));
+            }
+        }
+        send[1] = builder.toString();
+        return send;
     }
 
+    private static String[] parseValue(String line) {
+        String[] send = {"", "", ""};
+        int size = line.length();
+        StringBuilder builder = new StringBuilder();
+        byte stage = 0;
+        for (int i = 0; i < size; i++) {
+            char focus = line.charAt(i);
+            boolean reset = false;
+
+            if (stage == 0 && focus == ' ') {
+                reset = true;
+                send[0] = builder.toString();
+            } else if (stage == 1 && focus == ' ' && i+1 < size && line.charAt(i+1) == '#') {
+                reset = true;
+                send[1] = builder.toString();
+            } else if (focus != '\\' || i+1 >= size || line.charAt(i+1) != '#') {
+                builder.append(Character.toString(focus));
+            }
+            if (reset) {
+                stage++;
+                builder = new StringBuilder();
+            }
+        }
+        send[stage] = builder.toString();
+        return send;
+    }
 
     class Value {
         double value;

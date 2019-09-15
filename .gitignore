@@ -2,6 +2,7 @@
 *.class
 
 *.bat
+Test.java
 
 # Log file
 *.log

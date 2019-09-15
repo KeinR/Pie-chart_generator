@@ -1,7 +1,11 @@
-@radius 100
-@margin 50
-@outputPath output/two.png
-21 fef #304017
-21 efe #ff00d9
-11 a_thing #125d49
-3 something #dd9040
+@radius 1000
+@margin 100
+@outputPath output/example.png
+@title This repo be like:
+@titlesize 100
+20 utils #3c4530
+20 main classes #289e9b
+5 copied from SO so like yah that's hot #c9763a
+15 pretty import statements #9f4bbd
+40 cool pictures #6e77f1
+0 perfect #85911f
