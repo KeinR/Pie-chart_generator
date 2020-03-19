@@ -18,6 +18,7 @@ The rest here are for literal configuration:
 
 `@titlesize <number>` specifies the title's font size
 
+`@textcolor <hex color value>` specifies a hex color to use for text
 
 # Things to note:
 

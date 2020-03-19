@@ -3,6 +3,8 @@
 @outputPath output/example.png
 @title This repo be like:
 @titlesize 100
+@textcolor #dfdcd7
+@keystyle 1
 20 utils #3c4530
 20 main classes #289e9b
 5 copied from SO so like yah that's hot #c9763a

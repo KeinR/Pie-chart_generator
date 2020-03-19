@@ -49,6 +49,8 @@ public class Main extends Application {
     private static String textStyle = "-fx-font-size: 12;";
     private static String title = "";
     private static double titleSize = 15;
+    private static String textColor = "#242424";
+    private static byte keyStyle = 0;
 
     @Override
     public void start(Stage window) {
@@ -77,6 +79,10 @@ public class Main extends Application {
                             title = params[1];
                         } else if (params[0].equalsIgnoreCase("@titlesize")) {
                             titleSize = Double.parseDouble(params[1]);
+                        } else if (params[0].equalsIgnoreCase("@textcolor")) {
+                            textColor = params[1];
+                        } else if (params[0].equalsIgnoreCase("@keystyle")) {
+                            keyStyle = (byte)Integer.parseInt(params[1]);
                         }
                     } else {
                         String[] params = parseValue(line);
@@ -92,10 +98,14 @@ public class Main extends Application {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
+        int size = numbers.size();
 
         animation.terminate();
         System.out.println(" Done!");
+        if (size == 0) {
+            System.out.println("Error: no values specified with which to create chart.");
+            Platform.exit();
+        }
         System.out.print("Creating chart... \r");
         animation = new LoadingAnimation("Creating chart... ", 200);
         new Thread(animation).start();
@@ -111,14 +121,68 @@ public class Main extends Application {
         Label t = new Label(title);
         t.setLayoutX((dimensions-width_t)/2);
         t.setLayoutY(5);
-        t.setStyle("-fx-font-size: "+titleSize+";");
+        t.setStyle("-fx-font-size: "+titleSize+";-fx-text-fill: "+textColor+";");
         canvas.getChildren().add(t);
 
         center = new CoordinatePair(radius+sideMargin, radius+sideMargin+height_t);
         target = new CoordinatePair(radius+sideMargin, sideMargin+height_t);
 
+        final double
+        fontSizePre = dimensions_d20/3,
+        textSize = fontSizePre<10?10:fontSizePre;
 
-        int size = numbers.size();
+        textStyle = "-fx-font-size: "+textSize+";-fx-background-color: transparent;-fx-font-weight: bold;-fx-text-fill: "+textColor+";";
+
+        Font font = Font.font("Arial", textSize);
+
+        double
+        y_level = sideMargin,
+        x_level = 0,
+        x_buffer = 0,
+        y_buffer = 0;
+
+
+        if (keyStyle == 1) {
+            for (int i = 0; i < size; i++) { // Draw chart
+                Value focus = numbers.get(i);
+                if (focus.value == 0) continue;
+                double degreesChange_d2 = focus.value/total*360/2;
+
+                rotate(degreesChange_d2);
+
+                double
+                x_change = target.x-center.x,
+                y_change = target.y-center.y,
+                totalChange = Math.abs(x_change) + Math.abs(y_change);
+
+                x_change = x_change/totalChange;
+                y_change = y_change/totalChange;
+
+                CoordinatePair endpoint = new CoordinatePair(target.x+(x_change*dimensions_d10), target.y+(y_change*dimensions_d10));
+
+                Line line = new Line(target.x, target.y, endpoint.x, endpoint.y);
+
+                String toText = focus.name + ",  %" + (Math.round(focus.value/total*10000)/100.0);
+                Text text = new Text(toText);
+                text.setFont(font);
+                text.applyCss();
+                double width = text.getLayoutBounds().getWidth()*1.1;
+                Label label = new Label(toText);
+                if (x_change > 0) {
+                    label.setLayoutX(endpoint.x+dimensions_d20/4);
+                } else {
+                    label.setLayoutX(endpoint.x-(dimensions_d20/4+width));
+                }
+                label.setLayoutY(endpoint.y);
+                label.setStyle(textStyle);
+
+                canvas.getChildren().addAll(line, label);
+
+                rotate(degreesChange_d2);
+            }
+        }
+
+
 
         for (int i = 0; i < size; i++) { // Draw chart
             Value focus = numbers.get(i);
@@ -133,49 +197,38 @@ public class Main extends Application {
             }
         }
 
-        final double fontSizePre = dimensions_d20/3;
-        final double textSize = fontSizePre<10?10:fontSizePre;
-        textStyle = "-fx-font-size: "+textSize+";-fx-background-color: transparent;-fx-font-weight: bold;";
+        if (keyStyle == 0) {
+            for (int i = 0; i < size; i++) { // Add labels
+                Value focus = numbers.get(i);
+                String toText = " -> " + focus.name + ",  %" + (Math.round(focus.value/total*10000)/100.0);
+                Text text = new Text(toText);
+                text.setFont(font);
+                text.applyCss();
+                double width = text.getLayoutBounds().getWidth()*1.1;
 
-        ///
+                // width + color key width + total margin
+                double netWidth = dimensions_d20+width+keySpacing;
 
-        double y_level = sideMargin, x_level = 0, x_buffer = 0;
+                if (y_level+dimensions_d20 >= dimensions-sideMargin) {
+                    y_level = sideMargin;
+                    x_level = x_buffer;
+                }
+                if (netWidth+x_level+keySpacing > x_buffer) {
+                    x_buffer = netWidth+x_level+keySpacing;
+                }
 
-        for (int i = 0; i < size; i++) { // Add labels
-            Value focus = numbers.get(i);
-            String toText = " -> " + focus.name + ",  %" + (Math.round(focus.value/total*10000)/100.0);
-            Text text = new Text(toText);
-            Font font = Font.font("Arial", textSize);
-            text.setFont(font);
-            text.applyCss();
-            double width = text.getLayoutBounds().getWidth()*1.1;
+                Rectangle coloredKey = new Rectangle(dimensions+x_level, y_level+height_t, dimensions_d20, dimensions_d20);
+                coloredKey.setFill(Color.web(focus.color));
 
-            // width + color key width + total margin
-            double netWidth = dimensions_d20+width+keySpacing;
+                Label label = new Label(toText);
+                label.setLayoutX(dimensions+x_level+dimensions_d20+keySpacing);
+                label.setLayoutY(y_level+height_t+dimensions_d20/4);
+                label.setStyle(textStyle);
 
-            if (y_level+dimensions_d20 >= dimensions-sideMargin) {
-                y_level = sideMargin;
-                x_level = x_buffer;
+                canvas.getChildren().addAll(label, coloredKey);
+
+                y_level += dimensions_d20+keySpacing;
             }
-            if (netWidth+x_level+keySpacing > x_buffer) {
-                x_buffer = netWidth+x_level+keySpacing;
-            }
-
-            // if (i == 3) {
-            //     System.out.println((netWidth+x_level+keySpacing) + " ==? " + x_buffer);
-            // }
-
-            Rectangle coloredKey = new Rectangle(dimensions+x_level, y_level+height_t, dimensions_d20, dimensions_d20);
-            coloredKey.setFill(Color.web(focus.color));
-
-            Label label = new Label(toText);
-            label.setLayoutX(dimensions+x_level+dimensions_d20+keySpacing);
-            label.setLayoutY(y_level+height_t+dimensions_d20/4);
-            label.setStyle(textStyle);
-
-            canvas.getChildren().addAll(label, coloredKey);
-
-            y_level += dimensions_d20+keySpacing;
         }
 
 
@@ -186,7 +239,7 @@ public class Main extends Application {
         new Thread(animation).start();
 
         canvas.setStyle("-fx-background-color: null;");
-        Scene scene = new Scene(canvas, dimensions+x_buffer, dimensions+height_t);
+        Scene scene = new Scene(canvas, dimensions+x_buffer, dimensions+y_buffer+height_t);
         window.initStyle(StageStyle.TRANSPARENT);
         scene.setFill(Color.TRANSPARENT);
         ToFile.scene(scene, "png", outputPath);
