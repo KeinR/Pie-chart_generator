@@ -18,19 +18,3 @@ The rest here are for literal configuration:
 
 `@titlesize <number>` specifies the title's font size
 
-
-# Things to note:
-
-- Images are encoded as png, regardess what you specify the filename to be in `@outputpath`.
-
-- Main class is net.keinr.pichart.Main (but you probably already inferred that).
-
-- There are defaults for each of the "@" configuration parameters.
-
-- You put each statement in config on it's own line, and separate each parameter by a single space.
-
-- \*Adding '#''s to the <name> parameter for a new value in the config will break the config parser as a tradeoff for allowing spaces UNLESS you escape them using "\\#".
-
-# Installation
-
-Requires to be run with JavaFX modules `javafx.controls` & `javafx.swing`.

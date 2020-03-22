@@ -1,0 +1,13 @@
+@radius 1000
+@margin 100
+@out example.jpg
+@title Example Title
+@titlesize 100
+@percent
+# @value
+20 A #3c4530
+20 B #289e9b
+5 C #c9763a
+15 D #9f4bbd
+40 E #6e77f1
+0 F #85911f
