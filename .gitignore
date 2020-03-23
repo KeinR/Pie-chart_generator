@@ -33,3 +33,8 @@
 
 # stackdumps
 *.stackdump
+
+# tests
+*.bmp
+*.jpg
+*.log

@@ -3,6 +3,8 @@
 
 struct data {
     double value;
+    int enterX;
+    int enterY;
     std::string name;
     // Colors
     unsigned char RBG[3]{0};

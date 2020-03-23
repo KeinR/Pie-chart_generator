@@ -4,11 +4,17 @@
 #include <limits>
 #include <vector>
 #include <cmath>
+#include <functional>
 
 #include <stb/stb_image_write.h>
 #include <stb/stb_truetype.h>
 
 #include "main.h"
+
+#define DEBUG_LOCATION "chartgen.log"
+#define PI 3.141592653589793
+#define CHANNELS 3
+#define CIRCLE_FINENESS 1000 // 0 may break something
 
 int margin = 10;
 int radius = 100;
@@ -59,7 +65,7 @@ int main(int argc, char **argv) {
                     case '@': {
                         std::string command = readWord(file, lineNumber, buffer);
                         // Convert to lowercase
-                        for (int i = 0; i < command.length(); i++) {
+                        for (std::string::size_type i = 0; i < command.length(); i++) {
                             if (command[i] >= 'A' && command[i] <= 'Z') {
                                 command[i] += 0x20; // Or 32 in decimal- I find it easier to remember "20" though
                             }
@@ -182,22 +188,164 @@ int main(int argc, char **argv) {
         }
     }
 
-    std::cout << "margin: " << margin << std::endl;
-    std::cout << "radius: " << radius << std::endl;
-    std::cout << "out: " << out << std::endl;
-    std::cout << "title: " << title << std::endl;
-    std::cout << "titleSize: " << titleSize << std::endl;
-    std::cout << "printPercent: " << printPercent << std::endl;
+    std::ofstream debug(DEBUG_LOCATION);
 
-    std::cout << "-----------" << std::endl;
+    // ------------- debug -------------
 
-    for (int i = 0; i < dat.size(); i++) {
-        std::cout << ">>>>>>>>>>>> name: " << dat[i].name << std::endl;
-        std::cout << "value: " << dat[i].value << std::endl;
-        std::cout << "red: " << (int)dat[i].RBG[0] << std::endl;
-        std::cout << "blue: " << (int)dat[i].RBG[1] << std::endl;
-        std::cout << "green: " << (int)dat[i].RBG[2] << std::endl;
+    debug << "margin: " << margin << std::endl;
+    debug << "radius: " << radius << std::endl;
+    debug << "out: " << out << std::endl;
+    debug << "title: " << title << std::endl;
+    debug << "titleSize: " << titleSize << std::endl;
+    debug << "printPercent: " << printPercent << std::endl;
+
+    debug << "-----------" << std::endl;
+
+    for (std::vector<data>::size_type i = 0; i < dat.size(); i++) {
+        debug << ">>>>>>>>>>>> name: " << dat[i].name << std::endl;
+        debug << "value: " << dat[i].value << std::endl;
+        debug << "red: " << (int)dat[i].RBG[0] << std::endl;
+        debug << "blue: " << (int)dat[i].RBG[1] << std::endl;
+        debug << "green: " << (int)dat[i].RBG[2] << std::endl;
     }
+
+    // ------------- end debug -------------
+
+
+
+    const int diameter = radius * 2;
+
+    uint8_t *bitmap = new uint8_t[diameter * diameter * CHANNELS]{0};
+
+    debug << "Total size in MB: " << ((double)diameter * diameter * CHANNELS / 1000000) << std::endl;
+
+    const int movX = CHANNELS;
+    const int movY = diameter * movX;
+
+    // const int centerX = radius * CHANNELS / 2;
+    // const int centerY = radius * radius * CHANNELS / 2;
+
+    debug << "Enter and pry,,," << std::endl;
+
+    const int end = diameter - 20;
+    const int trueRadius = radius - 10;
+    const int trueRadiusSqr = trueRadius * trueRadius;
+
+    int total = 0;
+    for (std::vector<data>::size_type i = 0; i < dat.size(); i++) {
+        total += dat[i].value;
+    }
+    double netRads = 0;
+    for (std::vector<data>::size_type i = 0; i < dat.size(); i++) {
+        const double rads = dat[i].value / total * 2 * PI;
+        netRads += rads;
+        debug << "Net rads = " << netRads << std::endl;
+        // Trig paying off like oh yah
+        const double ex = radius + trueRadius * std::cos(netRads);
+        const double ey = radius + trueRadius * std::sin(netRads);
+        dat[i].enterX = ex;
+        dat[i].enterY = ey;
+
+        const int exi = std::round(ex);
+        const int eyi = std::round(ey);
+
+        const int endX = exi > radius ? exi : radius;
+        const int endY = eyi > radius ? eyi : radius;
+
+        if (ex != radius) {
+
+            const double slope = (ey - radius) / (ex - radius);
+            const double yIntercept = ey - ex * slope;
+
+            debug << "y=" << ey << ", x=" << ex << std::endl;
+            debug << "Equation: y = " << slope << " * X + " << yIntercept << std::endl;
+
+            debug << "EndX=" << endX << ", EndY=" << endY << std::endl;
+
+            if (std::abs(slope) < 1) {
+                for (int gx = exi < radius ? exi : radius; gx <= endX; gx++) {
+                    const int gy = gx * slope + yIntercept;
+                    if (gy > endY) {
+                        debug << "T-0, gy=" << gy << ", yend=" << endY << std::endl;
+                        break;
+                    }
+                    const int index = gx * movX + gy * movY;
+                    bitmap[index] = 0xFF;
+                    bitmap[index+1] = 0xFF;
+                    bitmap[index+2] = 0xFF;
+                }
+            } else {
+                debug << "lAnd" << std::endl;
+                for (int gy = eyi < radius ? eyi : radius; gy <= endY; gy++) {
+                    const int gx = (gy - yIntercept) / slope;
+                    if (gx > endX) {
+                        debug << "T-0-A, gx=" << gx << ", xend=" << endX << std::endl;
+                        break;
+                    }
+                    const int index = gx * movX + gy * movY;
+                    bitmap[index] = 0xFF;
+                    bitmap[index+1] = 0xFF;
+                    bitmap[index+2] = 0xFF;
+                }
+                debug << "PA!" << std::endl;
+            }
+        } else {
+            debug << "Now if you're encountering errors right now, it could have something to do with line 294..." << std::endl;
+            for (int gy = eyi < radius ? eyi : radius; gy <= endY; gy++) {
+                const int index = ex * movX + gy * movY;
+                bitmap[index] = 0xFF;
+                bitmap[index+1] = 0xFF;
+                bitmap[index+2] = 0xFF;
+            }
+        }
+    }
+
+    debug << "eee" << std::endl;
+
+
+    for (int x = 10; x < end; x++) {
+        const int vari = std::sqrt(trueRadiusSqr - std::pow(x - radius, 2));
+        int y = radius + vari;
+        int index = x * movX + y * movY;
+        bitmap[index] = 0xFF;
+        bitmap[index+1] = 0xFF;
+        bitmap[index+2] = 0xFF;
+        y = radius - vari;
+        index = x * movX + y * movY;
+        bitmap[index] = 0xFF;
+        bitmap[index+1] = 0xFF;
+        bitmap[index+2] = 0xFF;
+    }
+    for (int y = 10; y < end; y++) {
+        const int vari = std::sqrt(trueRadiusSqr - std::pow(y - radius, 2));
+        int x = radius + vari;
+        int index = x * movX + y * movY;
+        bitmap[index] = 0xFF;
+        bitmap[index+1] = 0xFF;
+        bitmap[index+2] = 0xFF;
+        x = radius - vari;
+        index = x * movX + y * movY;
+        bitmap[index] = 0xFF;
+        bitmap[index+1] = 0xFF;
+        bitmap[index+2] = 0xFF;
+    }
+
+    debug << "DOn.." << std::endl;
+
+
+    // Commence fill operation
+    for (std::vector<data>::size_type i = 0; i < dat.size(); i++) {
+        // Blank
+    }
+
+
+    stbi_write_jpg(out.c_str(), diameter, diameter, CHANNELS, bitmap, 0);
+    // stbi_write_bmp("out.bmp", diameter, diameter, CHANNELS, bitmap);
+
+    // Cleanup
+    debug.close();
+    delete[] bitmap;
+
 }
 
 std::string formatLF(const char *file, int lineNumber) {

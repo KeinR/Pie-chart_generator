@@ -1,4 +1,4 @@
-@radius 1000
+@radius 200
 @margin 100
 @out example.jpg
 @title Example Title
@@ -10,4 +10,4 @@
 5 C #c9763a
 15 D #9f4bbd
 40 E #6e77f1
-0 F #85911f
+# 0 F #85911f
