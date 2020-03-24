@@ -1,8 +1,9 @@
 @radius 200
-@margin 100
-@out example.jpg
+@margin 10
+@out example.png
 @title Example Title
-@titlesize 100
+@titlesize 50
+@fontsize 10
 @percent
 # @value
 20 A #3c4530

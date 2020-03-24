@@ -3,8 +3,6 @@
 
 struct data {
     double value;
-    int enterX;
-    int enterY;
     std::string name;
     // Colors
     unsigned char RBG[3]{0};
@@ -15,5 +13,7 @@ std::string readWord(std::ifstream &file, int &lineNumber, char &buffer);
 int hexToDec(const std::string &value);
 void toNewline(std::ifstream &file, char &buffer);
 std::string readLine(std::ifstream &file);
+int imin(int i1, int i2);
+int imax(int i1, int i2);
 
 #endif
