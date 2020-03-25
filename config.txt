@@ -1,11 +1,14 @@
 @radius 200
-@margin 10
+@margin 15
 @out example.png
-@title Example Title
+@title This really be a bruh momentsssssssssssssssssssss
 @titlesize 50
-@fontsize 10
+@descsize 20
+@descwrap 100
 @percent
 # @value
+@suffix %
+# @prefix *
 20 A #3c4530
 20 B #289e9b
 5 C #c9763a
