@@ -26,4 +26,6 @@ int imax(int i1, int i2);
 void getStringMetrics(const std::string &str, const int wrapWidth, const float &fontScale, const stbtt_fontinfo &fontInfo, // in
                         std::vector<fontMetrics> &metrics, std::vector<fLine> &lines); // out
 
+std::string formatValue(const double &value);
+
 #endif

@@ -37,11 +37,11 @@ int main(int argc, char **argv) {
     // Defaults
     int margin = 10;
     int radius = 100;
-    std::string out = "piechart.jpg";
+    std::string out = "piechart.png";
     std::string title;
     int titleSize = 10;
     int descSize = 10;
-    int descWrap = 30;
+    int descWrap = 50;
     bool printPercent = true;
     std::string suffix;
     std::string prefix;
@@ -243,31 +243,11 @@ int main(int argc, char **argv) {
         }
 
         genDispName = [](const data &d) -> std::string {
-            std::string out = std::to_string((int)std::round(d.percent * 10000));
-            out.insert(out.length()-3, ".");
-            for (int i = out.length()-1;; i--) {
-                if (out[i] == '.') {
-                    out.erase(i, out.length() - 1 - i);
-                    break;
-                } else if (out[i] != '0') {
-                    out.erase(i+1, out.length() - 1 - i);
-                }
-            }
-            return out; // TODO: setting to configure decimal accuracy
+            return formatValue(d.percent * 100);
         };
     } else {
         genDispName = [](const data &d) -> std::string {
-            std::string out = std::to_string((int)std::round(d.value * 10000));
-            out.insert(out.length()-3, ".");
-            for (int i = out.length()-1;; i--) {
-                if (out[i] == '.') {
-                    out.erase(i, out.length() - 1 - i);
-                    break;
-                } else if (out[i] != '0') {
-                    out.erase(i+1, out.length() - 1 - i);
-                }
-            }
-            return out; // TODO: setting to configure decimal accuracy
+            return formatValue(d.value);
         };
     }
 
@@ -339,7 +319,9 @@ int main(int argc, char **argv) {
     int fx = 0;
     std::vector<fontMetrics> sizeHistory;
     std::vector<fLine> lines;
-    getStringMetrics(title, chartCenterX + radius, fscale, finfo, sizeHistory, lines);
+    if (title.length()) {
+        getStringMetrics(title, chartCenterX + radius, fscale, finfo, sizeHistory, lines);
+    }
 
     // Sidebar
     int total = 0;
@@ -365,34 +347,44 @@ int main(int argc, char **argv) {
     // is a fucking taboo, but yolo swag you only live once
     int tyofs = 0; // Good luck guessing that abbreviated mess
     int txofs = 0; // or perhaps you can now
+    int sbMostX = 0;
     for (std::vector<data>::size_type i = 0; i < dat.size(); i++) {
         dat[i].percent = dat[i].value / total;
 
-        sideParts[i].RBG = dat[i].RBG;
+        sideSection &ss = sideParts[i];
 
-        sideParts[i].displayString += prefix;
-        sideParts[i].displayString += genDispName(dat[i]);
-        sideParts[i].displayString += suffix;
-        sideParts[i].displayString += ' ';
-        sideParts[i].displayString += dat[i].name;
+        ss.RBG = dat[i].RBG;
 
-        getStringMetrics(sideParts[i].displayString, descWrap, oScale, finfo, sideParts[i].metrics, sideParts[i].lines);
-        const int inc = sideParts[i].lines.size() * descSize + SIDEBAR_ELEMENT_MARGIN;
+        ss.displayString += prefix;
+        ss.displayString += genDispName(dat[i]);
+        ss.displayString += suffix;
+        ss.displayString += ' ';
+        ss.displayString += dat[i].name;
+
+        getStringMetrics(ss.displayString, descWrap, oScale, finfo, ss.metrics, ss.lines);
+        const int inc = (ss.lines.size() - 1) * oAscent + descSize + SIDEBAR_ELEMENT_MARGIN;
         if (tyofs + inc > diameter) {
             txofs += descWrap + margin; // Move right
-            sideParts[i].yOffset = 0;
+            ss.yOffset = 0;
             tyofs = inc; // Reset y-offset
+            sbMostX = 0;
         } else {
-            sideParts[i].yOffset = tyofs; // Set to foot of last
+            ss.yOffset = tyofs; // Set to foot of last
             tyofs += inc; // Move down
         }
-        sideParts[i].xOffset = txofs;
+        ss.xOffset = txofs;
+
+        for (std::vector<fLine>::size_type l = 0; l < ss.lines.size(); l++) {
+            if (ss.lines[l].width > sbMostX) {
+                sbMostX = ss.lines[l].width;
+            }
+        }
     }
 
     // -------- font rendering intermission; create the main bitmap
-    const int titleHeight = fascent * lines.size() + margin;
+    const int titleHeight = title.length() ? fascent * lines.size() + margin : 0;
                                           //- x taken up -   // Those little color boxes
-    const int width = diameter + margin + txofs + descWrap + descSize; //+ std::round(diameter * 0.07) + 
+    const int width = diameter + margin + txofs + sbMostX + descSize; //+ std::round(diameter * 0.07) + 
     const int height = diameter + titleHeight;
 
     const int chartCenterY = radius + titleHeight;
@@ -409,62 +401,65 @@ int main(int argc, char **argv) {
 
     debug << "THrough" << std::endl;
 
-    // Title rendering
     int verticalOffset = 0;
     std::string::size_type c = 0;
-    for (std::vector<std::string::size_type>::size_type l = 0; l < lines.size(); l++) {
-        // Must create intermediary bitmap as stb_truetype renders in grayscale, and the output bitmap is in RGBA
-        const int charbpmSize = lines[l].width * titleSize;
-        uint8_t *charbpm = new uint8_t[charbpmSize]{0};
 
-        fx = 0;
-        for (; c < lines[l].cOffset; c++) {
-            debug << "Vroom, c=" << c << ", l=" << l << ", cEnd=" << lines[l].cOffset << std::endl;
-            // ty Justin Meiners very helpful
-            // int ax;
-            // int lsb;
-            // stbtt_GetCodepointHMetrics(&finfo, title[c], &ax, &lsb);
+    // Title rendering
+    if (titleHeight) {
+        for (std::vector<std::string::size_type>::size_type l = 0; l < lines.size(); l++) {
+            // Must create intermediary bitmap as stb_truetype renders in grayscale, and the output bitmap is in RGBA
+            const int charbpmSize = lines[l].width * titleSize;
+            uint8_t *charbpm = new uint8_t[charbpmSize]{0};
 
-            /* get bounding box for character (may be offset to account for chars that dip above or below the line */
-            int c_x1, c_y1, c_x2, c_y2;
-            stbtt_GetCodepointBitmapBox(&finfo, title[c], fscale, fscale, &c_x1, &c_y1, &c_x2, &c_y2);
+            fx = 0;
+            for (; c < lines[l].cOffset; c++) {
+                debug << "Vroom, c=" << c << ", l=" << l << ", cEnd=" << lines[l].cOffset << std::endl;
+                // ty Justin Meiners very helpful
+                // int ax;
+                // int lsb;
+                // stbtt_GetCodepointHMetrics(&finfo, title[c], &ax, &lsb);
 
-            /* compute y (different characters have different heights */
-            int y = fascent + c_y1;
+                /* get bounding box for character (may be offset to account for chars that dip above or below the line */
+                int c_x1, c_y1, c_x2, c_y2;
+                stbtt_GetCodepointBitmapBox(&finfo, title[c], fscale, fscale, &c_x1, &c_y1, &c_x2, &c_y2);
 
-            /* render character (stride and offset is important here) */
-            int byteOffset = fx + sizeHistory[c].lsb + (y * lines[l].width);
-            stbtt_MakeCodepointBitmap(&finfo, charbpm + byteOffset, c_x2 - c_x1, c_y2 - c_y1, lines[l].width, fscale, fscale, title[c]);
+                /* compute y (different characters have different heights */
+                int y = fascent + c_y1;
 
-            /* advance x */
-            fx += sizeHistory[c].aw;
+                /* render character (stride and offset is important here) */
+                int byteOffset = fx + sizeHistory[c].lsb + (y * lines[l].width);
+                stbtt_MakeCodepointBitmap(&finfo, charbpm + byteOffset, c_x2 - c_x1, c_y2 - c_y1, lines[l].width, fscale, fscale, title[c]);
 
-            /* add kerning */
-            fx += sizeHistory[c].kern;
-        }
+                /* advance x */
+                fx += sizeHistory[c].aw;
 
-        // Render into output bitmap
-        for (int y = 0; y < titleSize; y++) {
-            for (int x = 0; x < lines[l].width; x++) {
-                const int ci = x + y * lines[l].width;
-                if (charbpm[ci] != 0) {
-                    const int index = (x + lines[l].mapOffset) * movX + (y + verticalOffset) * movY;
-                    bitmap[index] = charbpm[ci];
-                    bitmap[index+1] = charbpm[ci];
-                    bitmap[index+2] = charbpm[ci];
-                    bitmap[index+3] = 0xFF;
+                /* add kerning */
+                fx += sizeHistory[c].kern;
+            }
+
+            // Render into output bitmap
+            for (int y = 0; y < titleSize; y++) {
+                for (int x = 0; x < lines[l].width; x++) {
+                    const int ci = x + y * lines[l].width;
+                    if (charbpm[ci] != 0) {
+                        const int index = (x + lines[l].mapOffset) * movX + (y + verticalOffset) * movY;
+                        bitmap[index] = charbpm[ci];
+                        bitmap[index+1] = charbpm[ci];
+                        bitmap[index+2] = charbpm[ci];
+                        bitmap[index+3] = 0xFF;
+                    }
                 }
             }
+
+            // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdebug
+            std::string debug_fname = std::string("DEBUG.").append(std::to_string(l)).append(".bmp");
+            stbi_write_bmp(debug_fname.c_str(), lines[l].width, titleSize, 1, charbpm);
+
+            delete[] charbpm;
+
+            verticalOffset += fascent;
+            c = lines[l].cResume;
         }
-
-        // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdebug
-        std::string debug_fname = std::string("DEBUG.").append(std::to_string(l)).append(".bmp");
-        stbi_write_bmp(debug_fname.c_str(), lines[l].width, titleSize, 1, charbpm);
-
-        delete[] charbpm;
-
-        verticalOffset += fascent;
-        c = lines[l].cResume;
     }
 
     // Sidebar rendering
@@ -513,7 +508,7 @@ int main(int argc, char **argv) {
                 for (int x = 0; x < oLines[l].width; x++) {
                     const int ci = x + y * oLines[l].width;
                     if (charbpm[ci] != 0) {
-                        const int index = (x + margin + sideParts[p].xOffset + descSize + diameter + SIDEBAR_ELEMENT_MARGIN) * movX + (y + titleHeight + sideParts[p].yOffset) * movY;
+                        const int index = (x + margin + sideParts[p].xOffset + descSize + diameter + SIDEBAR_ELEMENT_MARGIN) * movX + (y + titleHeight + verticalOffset + sideParts[p].yOffset) * movY;
                         bitmap[index] = charbpm[ci];
                         bitmap[index+1] = charbpm[ci];
                         bitmap[index+2] = charbpm[ci];
@@ -736,7 +731,7 @@ void getStringMetrics(const std::string &str, const int wrapWidth, const float &
         metrics[i].lsb *= fontScale;
         debug << "aw=" << metrics[i].aw << ", lsb=" << metrics[i].lsb << std::endl;
 
-        fx += metrics[i].aw;
+        fx += metrics[i].aw + metrics[i].lsb;
         if (i+1 < str.length()) {
             metrics[i].kern = stbtt_GetCodepointKernAdvance(&fontInfo, str[i], str[i+1]) * fontScale;
             fx += metrics[i].kern;
@@ -751,7 +746,7 @@ void getStringMetrics(const std::string &str, const int wrapWidth, const float &
             std::string::size_type resume = i;
             // Mov to last word for soft wrap- if there's more than one word...
             if (canHazSpace) {
-                debug << "Backtrack" << std::endl;
+                debug << "Backtrack " << str << std::endl;
                 canHazSpace = false;
                 for (std::string::size_type newI = i; newI >= 0; newI--) {
                     if (str[newI] == ' ') { // Perhaps terminar el spaces en el futuro?
@@ -784,4 +779,18 @@ void getStringMetrics(const std::string &str, const int wrapWidth, const float &
         (wrapWidth - fx) / 2,
         fx
     });
+}
+
+std::string formatValue(const double &value) {
+    std::string out = std::to_string((int)std::round(value * 100)); // TODO: setting to configure accuracy?
+    out.insert(out.length()-2, ".");
+    for (int i = out.length()-1;; i--) {
+        if (out[i] == '.') {
+            out.erase(i, out.length() - i);
+            break;
+        } else if (out[i] != '0') {
+            out.erase(i+1, out.length() - i);
+        }
+    }
+    return out;
 }

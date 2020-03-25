@@ -5,13 +5,19 @@
 @titlesize 50
 @descsize 20
 @descwrap 100
-@percent
-# @value
-@suffix %
-# @prefix *
-20 A #3c4530
+# @percent
+@value
+@suffix $$$
+@prefix *
+20 Ana capa to the lapa yo #3c4530
 20 B #289e9b
-5 C #c9763a
+50 C #c9763a
 15 D #9f4bbd
 40 E #6e77f1
-# 0 F #85911f
+20 Bd #289e9b
+50 Cas #c9763a
+15 asaD #9f4bbd
+40 asdE #6e77f1
+50 aCas #c9763a
+15 asaD #9f4bbd
+40 aaasdE #6e77f1
