@@ -156,6 +156,44 @@ int main(int argc, char **argv) {
                         std::string sbuff = readWord(file, lineNumber, buffer);
                         d.value = std::stod(sbuff);
 
+                        sbuff = readWord(file, lineNumber, buffer);
+                        if (sbuff.length() && sbuff[0] == '#') {
+                            sbuff.erase(0, 1);
+                        }
+
+                        debug << "Start parse hex" << std::endl;
+                        bool setUp = false;
+                        for (int e = sbuff.length()-1, current = 2; e >= 0; e--) {
+                            int val;
+                            if (sbuff[e] >= '0' && sbuff[e] <= '9') {
+                                val = sbuff[e] - '0';
+                            } else if (sbuff[e] >= 'A' && sbuff[e] <= 'F') {
+                                val = sbuff[e] - 0x37;
+                            } else if (sbuff[e] >= 'a' && sbuff[e] <= 'f') {
+                                val = sbuff[e] - 0x57;
+                            } else {
+                                std::cerr << formatLF(argv[i], lineNumber) << " Invalid hex string \"" << sbuff <<
+                                "\", can only contain chars 0-9, a-f, A-F" << std::endl;
+                                debug << "ERR" << std::endl;
+                                break;
+                            }
+                            if (current < 0) {
+                                std::cerr << formatLF(argv[i], lineNumber) << " Invalid hex string \"" << sbuff <<
+                                "\", must be at or below 6 characters" << std::endl;
+                                debug << "ERR" << std::endl;
+                                break;
+                            }
+                            d.RBG[current] += val * std::pow(16, (int)setUp);
+                            if (setUp) {
+                                setUp = false;
+                                current--;
+                            } else {
+                                setUp = true;
+                            }
+                        }
+
+                        debug << "ENter parse name" << std::endl;
+
                         sbuff.clear();
                         for (; buffer == ' '; file.get(buffer));
                         for (bool cont = true;; file.get(buffer)) {
@@ -168,49 +206,6 @@ int main(int argc, char **argv) {
                                         d.name = sbuff;
                                         cont = false;
                                         break;
-                                    case '#': {
-                                        // Remove last few whitespace chars, if there are any
-                                        for (int i = sbuff.length()-1; i >= 0; i--) {
-                                            if (sbuff[i] != ' ') {
-                                                sbuff.erase(i+1, sbuff.length()-1-i);
-                                                break;
-                                            }
-                                        }
-                                        d.name = sbuff;
-
-                                        sbuff = readWord(file, lineNumber, buffer);
-
-                                        bool setUp = false;
-                                        for (int i = sbuff.length()-1, current = 2; i >= 0; i--) {
-                                            int val;
-                                            if (sbuff[i] >= '0' && sbuff[i] <= '9') {
-                                                val = sbuff[i] - '0';
-                                            } else if (sbuff[i] >= 'A' && sbuff[i] <= 'F') {
-                                                val = sbuff[i] - 0x37;
-                                            } else if (sbuff[i] >= 'a' && sbuff[i] <= 'f') {
-                                                val = sbuff[i] - 0x57;
-                                            } else {
-                                                std::cerr << formatLF(argv[i], lineNumber) << " Invalid hex string \"" << sbuff <<
-                                                "\", can only contain chars 0-9, a-f, A-F" << std::endl;
-                                                break;
-                                            }
-                                            if (current < 0) {
-                                                std::cerr << formatLF(argv[i], lineNumber) << " Invalid hex string \"" << sbuff <<
-                                                "\", must be at or below 6 characters" << std::endl;
-                                                break;
-                                            }
-                                            d.RBG[current] += val * std::pow(16, (int)setUp);
-                                            if (setUp) {
-                                                setUp = false;
-                                                current--;
-                                            } else {
-                                                setUp = true;
-                                            }
-                                        }
-                                        toNewline(file, buffer);
-                                        cont = false;
-                                        break;
-                                    }
                                     default:
                                         sbuff += buffer;
                                 }
@@ -320,6 +315,7 @@ int main(int argc, char **argv) {
     std::vector<fontMetrics> sizeHistory;
     std::vector<fLine> lines;
     if (title.length()) {
+        debug << "Start title run - ---------------------- -" << std::endl;
         getStringMetrics(title, chartCenterX + radius, fscale, finfo, sizeHistory, lines);
     }
 
@@ -348,6 +344,7 @@ int main(int argc, char **argv) {
     int tyofs = 0; // Good luck guessing that abbreviated mess
     int txofs = 0; // or perhaps you can now
     int sbMostX = 0;
+    debug << "Start sidebar run ------------------------ -- - - -" << std::endl;
     for (std::vector<data>::size_type i = 0; i < dat.size(); i++) {
         dat[i].percent = dat[i].value / total;
 
@@ -375,16 +372,18 @@ int main(int argc, char **argv) {
         ss.xOffset = txofs;
 
         for (std::vector<fLine>::size_type l = 0; l < ss.lines.size(); l++) {
+            debug << "Line width =========================== " << ss.lines[l].width << std::endl;
             if (ss.lines[l].width > sbMostX) {
                 sbMostX = ss.lines[l].width;
             }
         }
     }
+    debug << "MOst x = " << sbMostX << std::endl;
 
     // -------- font rendering intermission; create the main bitmap
     const int titleHeight = title.length() ? fascent * lines.size() + margin : 0;
                                           //- x taken up -   // Those little color boxes
-    const int width = diameter + margin + txofs + sbMostX + descSize; //+ std::round(diameter * 0.07) + 
+    const int width = diameter + margin + txofs + sbMostX + SIDEBAR_ELEMENT_MARGIN + descSize; //+ std::round(diameter * 0.07) + 
     const int height = diameter + titleHeight;
 
     const int chartCenterY = radius + titleHeight;
@@ -710,11 +709,11 @@ std::string readLine(std::ifstream &file) {
     return out;
 }
 
-int imin(int i1, int i2) {
+int imin(const int &i1, const int &i2) {
     return i1 < i2 ? i1 : i2;
 }
 
-int imax(int i1, int i2) {
+int imax(const int &i1, const int &i2) {
     return i1 > i2 ? i1 : i2;
 }
 
@@ -722,7 +721,7 @@ int imax(int i1, int i2) {
 // otherwise this function will inevitably seg fault
 void getStringMetrics(const std::string &str, const int wrapWidth, const float &fontScale, const stbtt_fontinfo &fontInfo, // in
                         std::vector<fontMetrics> &metrics, std::vector<fLine> &lines) { // out
-    int fx = DECLIP_MARGIN; // Stands for like "font-x" or something
+    int fx = 0; // Stands for like "font-x" or something
     metrics.reserve(str.length());
     bool canHazSpace = false;
     for (std::string::size_type i = 0; i < str.length(); i++) {
@@ -731,46 +730,56 @@ void getStringMetrics(const std::string &str, const int wrapWidth, const float &
         metrics[i].lsb *= fontScale;
         debug << "aw=" << metrics[i].aw << ", lsb=" << metrics[i].lsb << std::endl;
 
-        fx += metrics[i].aw + metrics[i].lsb;
+        int inc = metrics[i].aw;
         if (i+1 < str.length()) {
             metrics[i].kern = stbtt_GetCodepointKernAdvance(&fontInfo, str[i], str[i+1]) * fontScale;
-            fx += metrics[i].kern;
+            inc += metrics[i].kern;
         } else {
             metrics[i].kern = 0;
         }
 
-        if (fx > wrapWidth) {
+        if (fx + inc > wrapWidth) {
             // Remove last char that caused overflow
-            fx -= metrics[i].aw + metrics[i].kern;
-            i--;
-            std::string::size_type resume = i;
+            // fx -= metrics[i].aw + metrics[i].kern;
+            std::string::size_type resumeIncl = i;
+            // i--;
+            // fx -= metrics[i].aw + metrics[i].kern;
             // Mov to last word for soft wrap- if there's more than one word...
+            int width = fx;
+            std::string::size_type terminateIndexExcl = i;
+            fx = inc;
             if (canHazSpace) {
                 debug << "Backtrack " << str << std::endl;
                 canHazSpace = false;
-                for (std::string::size_type newI = i; newI >= 0; newI--) {
-                    if (str[newI] == ' ') { // Perhaps terminar el spaces en el futuro?
-                        resume = newI+1;
+                for (std::string::size_type newI = terminateIndexExcl; newI >= 0; newI--) {
+                    if (str[newI] == ' ') {
+                        resumeIncl = newI+1;
                         for (; newI >= 0 && str[newI] == ' '; newI--);
-                        newI++; // because it's exclusive
-                        for (; i > newI; i--) {
-                            fx -= metrics[i].aw + metrics[i].kern;
+                        newI += 2; // because it's exclusive
+                        for (;;) {
+                            fx += metrics[i].aw + metrics[i].kern;
+                            terminateIndexExcl--;
+                            if (terminateIndexExcl <= newI) {
+                                break;
+                            }
+                            width -= metrics[i].aw + metrics[i].kern;
                         }
                         break;
                     }
                 }
             }
-            debug << "Pushback " << i << std::endl;
+            debug << "Pushback " << i << ", fx=" << fx << ", ch=" << str[i] << std::endl;
             lines.push_back({
-                i,
-                resume,
-                (wrapWidth - fx) / 2,
-                fx
+                terminateIndexExcl,
+                resumeIncl,
+                (wrapWidth - width) / 2,
+                width
             });
-            i = resume-1;
-            fx = DECLIP_MARGIN;
-        } else if (str[i] == ' ') {
-            canHazSpace = true;
+        } else {
+            fx += inc;
+            if (str[i] == ' ') {
+                canHazSpace = true;
+            }
         }
     }
     lines.push_back({
