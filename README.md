@@ -16,9 +16,9 @@ The rest here are for literal configuration, all of which have defaults, and are
 
 Terms to know:
 * `exString`: Chars will be captured from after the *LAST* space after the command,
-ex "@title  asda" will result in a title "asda"
+ex "@title<code>   </code>asda" will result in a title "asda"
 * `incString`: Chars wil be captured from after the *FIRST* space after the command, 
-ex "@suffix  asda" will result in a suffix " asda"
+ex "@suffix<code>   </code>asda" will result in a suffix "<code>  </code>asda"
 * `integer`: You probally know this one, but just to be clear: only chars 0-9, keep it less than 2147483647 (0x7FFFFFFF) and above 0 to prevent seg faults, although that shouldn't be a problem for the average person...
 
 `@title <exString>` sets the title.
