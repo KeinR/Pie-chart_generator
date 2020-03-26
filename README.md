@@ -10,7 +10,7 @@ Where `<config files>` can be more than one config file, each successive one eff
 
 Config file syntax:
 
-`<value (decimal or integer)> <name> #<hex color>` the main attraction, this is how you add a new value to the pi-chart. The first parameter is the number for the data group, the second is the name that will be used to refer to it on the key (spaces permitted), and the third specifies a hex color to use for it.
+`<value (decimal or integer)> #<hex color> <name>` the main attraction, this is how you add a new value to the pi-chart. The first parameter is the number for the data group, the second is the name that will be used to refer to it on the key (spaces permitted), and the third specifies a hex color to use for it.
 
 The rest here are for literal configuration, all of which have defaults, and are case insensitive:
 
