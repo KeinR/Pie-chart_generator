@@ -451,8 +451,8 @@ int main(int argc, char **argv) {
             }
 
             // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdebug
-            std::string debug_fname = std::string("DEBUG.").append(std::to_string(l)).append(".bmp");
-            stbi_write_bmp(debug_fname.c_str(), lines[l].width, titleSize, 1, charbpm);
+            // std::string debug_fname = std::string("DEBUG.").append(std::to_string(l)).append(".bmp");
+            // stbi_write_bmp(debug_fname.c_str(), lines[l].width, titleSize, 1, charbpm);
 
             delete[] charbpm;
 
@@ -539,7 +539,7 @@ int main(int argc, char **argv) {
     int lastX = chartCenterX + radius;
 
     double netRads = 0;
-    bool cont = true;
+    bool cont = dat.size();
     for (std::vector<data>::size_type i = 0; cont; i++) {
         const double rads = dat[i].percent * 2 * PI;
         netRads += rads;
@@ -755,20 +755,20 @@ void getStringMetrics(const std::string &str, const int wrapWidth, const float &
                     if (str[newI] == ' ') {
                         resumeIncl = newI+1;
                         for (; newI >= 0 && str[newI] == ' '; newI--);
-                        newI += 2; // because it's exclusive
-                        for (;;) {
-                            fx += metrics[i].aw + metrics[i].kern;
+                        newI++; // because it's exclusive
+                        for (;terminateIndexExcl > newI;) {
                             terminateIndexExcl--;
-                            if (terminateIndexExcl <= newI) {
-                                break;
-                            }
-                            width -= metrics[i].aw + metrics[i].kern;
+                            width -= metrics[terminateIndexExcl].aw + metrics[terminateIndexExcl].kern;
+                            fx += metrics[terminateIndexExcl].aw + metrics[terminateIndexExcl].kern;
                         }
+                        terminateIndexExcl = newI;
                         break;
                     }
                 }
             }
-            debug << "Pushback " << i << ", fx=" << fx << ", ch=" << str[i] << std::endl;
+            debug << "Pushback " << i << ", fx=" << fx <<
+            ", ch='" << str[i] << "', terminate=" << terminateIndexExcl <<
+            ", resume=" << resumeIncl << std::endl;
             lines.push_back({
                 terminateIndexExcl,
                 resumeIncl,
